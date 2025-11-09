@@ -2,7 +2,6 @@
 Tests for the check_claim API endpoint.
 """
 
-import pytest
 from fastapi.testclient import TestClient
 
 from server.main import app
@@ -131,7 +130,10 @@ class TestCheckClaimAPI:
 
     def test_parse_claim_complex(self):
         """Test parsing a complex claim with multiple features."""
-        text = "Tesla and NVIDIA stock prices surged 15% and 20% today after both announced new releases"
+        text = (
+            "Tesla and NVIDIA stock prices surged 15% and 20% today "
+            "after both announced new releases"
+        )
         response = client.post("/check_claim/parse", json={"claim_text": text})
         assert response.status_code == 200
         data = response.json()
