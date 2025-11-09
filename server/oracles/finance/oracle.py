@@ -9,6 +9,7 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 
@@ -197,18 +198,25 @@ class FinanceOracle(Oracle):
 
         # Try to use date_hint first
         if claim.date_hint:
-            now = datetime.now(timezone.utc)
+            # Use America/New_York timezone to properly handle EST/EDT
+            ny_tz = ZoneInfo("America/New_York")
+            now_ny = datetime.now(ny_tz)
+
             if "today" in claim.date_hint.lower():
-                # Market open 9:30 AM ET = 14:30 UTC (winter) / 13:30 UTC (summer DST)
-                # Use 14:30 UTC as default (EST)
-                raw_timestamp = now.replace(hour=14, minute=30, second=0, microsecond=0)
+                # Market open 9:30 AM ET (automatically handles EST/EDT)
+                market_open_ny = now_ny.replace(hour=9, minute=30, second=0, microsecond=0)
+                raw_timestamp = market_open_ny.astimezone(timezone.utc)
             elif "yesterday" in claim.date_hint.lower():
                 # Use previous day at market open
-                yesterday = now - timedelta(days=1)
-                raw_timestamp = yesterday.replace(hour=14, minute=30, second=0, microsecond=0)
+                yesterday_ny = now_ny - timedelta(days=1)
+                market_open_yesterday = yesterday_ny.replace(
+                    hour=9, minute=30, second=0, microsecond=0
+                )
+                raw_timestamp = market_open_yesterday.astimezone(timezone.utc)
             elif "this morning" in claim.date_hint.lower():
                 # Use current day at market open
-                raw_timestamp = now.replace(hour=14, minute=30, second=0, microsecond=0)
+                market_open_ny = now_ny.replace(hour=9, minute=30, second=0, microsecond=0)
+                raw_timestamp = market_open_ny.astimezone(timezone.utc)
 
         # Try to extract from news data with relevance scoring
         if raw_timestamp is None and news_data:

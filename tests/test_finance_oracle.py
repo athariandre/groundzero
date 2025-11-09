@@ -3,7 +3,7 @@ Tests for Finance Oracle.
 """
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 import pandas as pd
 import pytest
@@ -296,13 +296,14 @@ class TestFinanceOracle:
         """Test event timestamp extraction from date hints."""
         oracle = FinanceOracle()
 
-        # Test "today" - should be 14:30 UTC (market open in EST)
+        # Test "today" - should be 9:30 AM ET converted to UTC (13:30 or 14:30 depending on DST)
         claim = Claim(
             raw="AAPL rose", tickers=["AAPL"], companies=[], percentages=[], date_hint="today"
         )
         timestamp = oracle._extract_event_timestamp(claim, None, None)
         assert timestamp is not None
-        assert timestamp.hour == 14
+        # Hour should be 13 (EDT) or 14 (EST) depending on time of year
+        assert timestamp.hour in [13, 14]
         assert timestamp.minute == 30
 
         # Test "yesterday"
@@ -315,9 +316,15 @@ class TestFinanceOracle:
         )
         timestamp = oracle._extract_event_timestamp(claim, None, None)
         assert timestamp is not None
-        now = datetime.now(timezone.utc)
-        expected_day = (now - timedelta(days=1)).day
-        assert timestamp.day == expected_day
+        # Use NY timezone to properly check day
+        from zoneinfo import ZoneInfo
+
+        ny_tz = ZoneInfo("America/New_York")
+        now_ny = datetime.now(ny_tz)
+        expected_day = (now_ny - timedelta(days=1)).day
+        # Convert timestamp to NY time to check day
+        timestamp_ny = timestamp.astimezone(ny_tz)
+        assert timestamp_ny.day == expected_day
 
         # Test "this morning"
         claim = Claim(
@@ -329,7 +336,8 @@ class TestFinanceOracle:
         )
         timestamp = oracle._extract_event_timestamp(claim, None, None)
         assert timestamp is not None
-        assert timestamp.hour == 14
+        # Hour should be 13 (EDT) or 14 (EST) depending on time of year
+        assert timestamp.hour in [13, 14]
         assert timestamp.minute == 30
 
     def test_extract_event_timestamp_from_news(self):
