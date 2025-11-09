@@ -272,19 +272,22 @@ class FinanceOracle(Oracle):
 
     def _snap_to_nearest_bar(self, timestamp: datetime, price_data: pd.DataFrame) -> datetime:
         """
-        Snap a timestamp to the nearest price bar in the dataset.
+        Snap a timestamp to the next price bar (forward-only snapping).
 
         Args:
             timestamp: The raw timestamp to snap
             price_data: DataFrame with price data
 
         Returns:
-            Timestamp of the nearest price bar
+            Timestamp of the next price bar (or last bar if no future bars exist)
         """
-        # Find the nearest timestamp in price_data
-        time_diffs = (price_data["timestamp"] - timestamp).abs()
-        nearest_idx = time_diffs.idxmin()
-        return price_data.loc[nearest_idx, "timestamp"]
+        # Forward snap: find first bar at or after the timestamp
+        future_bars = price_data[price_data["timestamp"] >= timestamp]
+        if len(future_bars) > 0:
+            return future_bars.iloc[0]["timestamp"]
+
+        # If no future bars, snap to last bar
+        return price_data.iloc[-1]["timestamp"]
 
     def _compute_metrics(
         self,
@@ -321,17 +324,14 @@ class FinanceOracle(Oracle):
             (price_data["timestamp"] >= event_time) & (price_data["timestamp"] <= post_end)
         ]
 
-        # Need at least some data points
-        if len(pre_data) < 1 or len(post_data) < 1:
+        # Need at least 2 data points in each window for stable return estimation
+        if len(pre_data) < 2 or len(post_data) < 2:
             return None
 
         # Calculate returns using first and last bars in each window
-        if len(pre_data) >= 2:
-            pre_event_return = (
-                (pre_data["price"].iloc[-1] - pre_data["price"].iloc[0]) / pre_data["price"].iloc[0]
-            ) * 100
-        else:
-            pre_event_return = 0.0
+        pre_event_return = (
+            (pre_data["price"].iloc[-1] - pre_data["price"].iloc[0]) / pre_data["price"].iloc[0]
+        ) * 100
 
         post_event_return = (
             (post_data["price"].iloc[-1] - post_data["price"].iloc[0]) / post_data["price"].iloc[0]
