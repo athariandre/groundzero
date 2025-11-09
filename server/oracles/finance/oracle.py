@@ -6,7 +6,7 @@ Example: "SOL jumped 8% after ETF approval this morning."
 """
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -25,7 +25,9 @@ class FinanceOracle(Oracle):
     def __init__(self):
         """Initialize the Finance Oracle."""
         # Path to cached data
-        self.data_dir = Path(__file__).parent.parent.parent / "data" / "prices"
+        base_data_dir = Path(__file__).parent.parent.parent / "data"
+        self.price_data_dir = base_data_dir / "prices"
+        self.news_data_dir = base_data_dir / "news"
 
     def analyze(self, claim: Claim, domain: DomainResult) -> OracleResult:
         """
@@ -120,26 +122,39 @@ class FinanceOracle(Oracle):
         """
         Load cached price data for a ticker.
 
+        Supports two CSV schemas:
+        1. Simple: timestamp, price, volume
+        2. OHLC: timestamp, open, high, low, close, volume (price = close)
+
         Args:
             ticker: Stock ticker symbol
 
         Returns:
             DataFrame with price data or None if not found
         """
-        csv_path = self.data_dir / f"{ticker}.csv"
+        csv_path = self.price_data_dir / f"{ticker}.csv"
         if not csv_path.exists():
             return None
 
         try:
             df = pd.read_csv(csv_path)
-            # Ensure we have required columns
-            required_cols = ["timestamp", "price", "volume"]
-            if not all(col in df.columns for col in required_cols):
+
+            # Check for simple schema (timestamp, price, volume)
+            if {"timestamp", "price", "volume"}.issubset(df.columns):
+                pass
+            # Check for OHLC schema (timestamp, open, high, low, close, volume)
+            elif {"timestamp", "open", "high", "low", "close", "volume"}.issubset(df.columns):
+                df["price"] = df["close"]
+            else:
                 return None
 
-            # Parse timestamps
-            df["timestamp"] = pd.to_datetime(df["timestamp"])
-            return df
+            # Parse timestamps with UTC awareness and handle errors
+            df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True, errors="coerce")
+
+            # Drop rows with invalid timestamps and sort by timestamp
+            df = df.dropna(subset=["timestamp"]).sort_values("timestamp").reset_index(drop=True)
+
+            return df[["timestamp", "price", "volume"]]
         except Exception:
             return None
 
@@ -153,7 +168,7 @@ class FinanceOracle(Oracle):
         Returns:
             List of news items or None if not found
         """
-        json_path = self.data_dir / f"{ticker}_news.json"
+        json_path = self.news_data_dir / f"{ticker}_news.json"
         if not json_path.exists():
             return None
 
@@ -175,13 +190,13 @@ class FinanceOracle(Oracle):
             news_data: List of news items
 
         Returns:
-            Event timestamp or None if not found
+            Event timestamp (UTC timezone-aware) or None if not found
         """
         # Try to use date_hint first
         if claim.date_hint:
-            now = datetime.now()
+            now = datetime.now(timezone.utc)
             if "today" in claim.date_hint.lower():
-                # Use current date at market open (9:30 AM)
+                # Use current date at market open (9:30 AM UTC)
                 return now.replace(hour=9, minute=30, second=0, microsecond=0)
             elif "yesterday" in claim.date_hint.lower():
                 # Use previous day at market open
@@ -197,7 +212,11 @@ class FinanceOracle(Oracle):
                 # Check if ticker or company is mentioned
                 if "timestamp" in item:
                     try:
-                        return datetime.fromisoformat(item["timestamp"].replace("Z", "+00:00"))
+                        ts = datetime.fromisoformat(item["timestamp"].replace("Z", "+00:00"))
+                        # Ensure timezone-aware
+                        if ts.tzinfo is None:
+                            ts = ts.replace(tzinfo=timezone.utc)
+                        return ts
                     except Exception:
                         continue
 
