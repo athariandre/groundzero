@@ -115,9 +115,9 @@ class TestOracleRouterSmoke:
         assert response.status_code == 200
         data = response.json()
 
-        # Check routing - should route to fallback for general domain
+        # Check routing - should route to general (LLM oracle) for general domain
         routing = data["routing"]
-        assert routing["primary_oracle"] == "fallback"
+        assert routing["primary_oracle"] == "general"
         assert routing["fallback_used"] is False  # High confidence, no additional fallback
 
     def test_run_oracles_missing_claim(self):
