@@ -7,10 +7,12 @@ Main application entry point for the GroundZero backend API.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from server.routers.check_claim import router as check_claim_router
+
 app = FastAPI(
     title="GroundZero API",
     description="Backend API for GroundZero browser extension",
-    version="0.1.0"
+    version="0.1.0",
 )
 
 # Configure CORS
@@ -21,6 +23,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include routers
+app.include_router(check_claim_router)
 
 
 @app.get("/")
@@ -37,4 +42,5 @@ async def healthcheck():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)
