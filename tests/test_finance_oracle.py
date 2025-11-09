@@ -3,7 +3,7 @@ Tests for Finance Oracle.
 """
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 import pytest
@@ -295,13 +295,13 @@ class TestFinanceOracle:
         """Test event timestamp extraction from date hints."""
         oracle = FinanceOracle()
 
-        # Test "today"
+        # Test "today" - should be 14:30 UTC (market open in EST)
         claim = Claim(
             raw="AAPL rose", tickers=["AAPL"], companies=[], percentages=[], date_hint="today"
         )
-        timestamp = oracle._extract_event_timestamp(claim, None)
+        timestamp = oracle._extract_event_timestamp(claim, None, None)
         assert timestamp is not None
-        assert timestamp.hour == 9
+        assert timestamp.hour == 14
         assert timestamp.minute == 30
 
         # Test "yesterday"
@@ -312,9 +312,9 @@ class TestFinanceOracle:
             percentages=[],
             date_hint="yesterday",
         )
-        timestamp = oracle._extract_event_timestamp(claim, None)
+        timestamp = oracle._extract_event_timestamp(claim, None, None)
         assert timestamp is not None
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         expected_day = (now - timedelta(days=1)).day
         assert timestamp.day == expected_day
 
@@ -326,9 +326,9 @@ class TestFinanceOracle:
             percentages=[],
             date_hint="this morning",
         )
-        timestamp = oracle._extract_event_timestamp(claim, None)
+        timestamp = oracle._extract_event_timestamp(claim, None, None)
         assert timestamp is not None
-        assert timestamp.hour == 9
+        assert timestamp.hour == 14
         assert timestamp.minute == 30
 
     def test_extract_event_timestamp_from_news(self):
@@ -341,7 +341,7 @@ class TestFinanceOracle:
 
         news_data = [{"title": "News", "timestamp": "2024-01-15T10:00:00"}]
 
-        timestamp = oracle._extract_event_timestamp(claim, news_data)
+        timestamp = oracle._extract_event_timestamp(claim, news_data, None)
         assert timestamp is not None
         assert timestamp.hour == 10
         assert timestamp.minute == 0
@@ -412,12 +412,14 @@ class TestFinanceOracle:
             },
         ]
 
-        evidence = oracle._build_evidence_items(news_data, "AAPL")
+        evidence = oracle._build_evidence_items(news_data, "AAPL", "likely_true")
 
         assert len(evidence) == 2
         assert evidence[0].title == "News Item 1"
         assert evidence[0].source == "Source 1"
         assert evidence[0].url == "https://example.com/1"
+        assert evidence[0].stance == "supports"
+        assert evidence[0].stance_conf == 0.6
         assert len(evidence[0].extract) == 200  # Should truncate to 200 chars
         assert evidence[1].title == "News Item 2"
         assert len(evidence[1].extract) <= 200
@@ -436,7 +438,7 @@ class TestFinanceOracle:
             for i in range(10)
         ]
 
-        evidence = oracle._build_evidence_items(news_data, "AAPL")
+        evidence = oracle._build_evidence_items(news_data, "AAPL", "uncertain")
 
         assert len(evidence) == 5  # Should limit to 5 items
 
@@ -444,8 +446,8 @@ class TestFinanceOracle:
         """Test building evidence items with no news data."""
         oracle = FinanceOracle()
 
-        evidence = oracle._build_evidence_items(None, "AAPL")
+        evidence = oracle._build_evidence_items(None, "AAPL", "uncertain")
         assert evidence == []
 
-        evidence = oracle._build_evidence_items([], "AAPL")
+        evidence = oracle._build_evidence_items([], "AAPL", "uncertain")
         assert evidence == []
