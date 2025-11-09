@@ -44,7 +44,7 @@ class OracleResult(BaseModel):
 class OracleRoutingDecision(BaseModel):
     """Model representing the routing decision made by the oracle router."""
 
-    primary_oracle: Literal["finance", "tech_release", "fallback", "null"]
+    primary_oracle: Literal["finance", "tech_release", "general"]
     fallback_used: bool = False
 
 
