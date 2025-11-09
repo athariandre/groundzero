@@ -4,6 +4,7 @@ Oracle router for GroundZero.
 Routes claims to appropriate oracles based on domain classification.
 """
 
+from server.oracles.finance import FinanceOracle
 from server.oracles.null_oracle import NullOracle
 from server.schemas.claim import Claim, DomainResult
 from server.schemas.oracle_result import OracleResult, OracleRoutingDecision
@@ -18,8 +19,9 @@ class OracleRouter:
         """Initialize the oracle router with oracle registry."""
         # Registry allows drop-in replacement in PR4/PR5/PR6
         self.null_oracle = NullOracle()
+        self.finance_oracle = FinanceOracle()
         self.registry = {
-            "finance": self.null_oracle,  # TODO: replace in PR4
+            "finance": self.finance_oracle,  # Finance oracle (PR4)
             "tech_release": self.null_oracle,  # TODO: replace in PR5
             "fallback": self.null_oracle,  # TODO: replace in PR6
         }
