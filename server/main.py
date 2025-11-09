@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from server.routers.check_claim import router as check_claim_router
+from server.routers.oracles import router as oracles_router
 
 app = FastAPI(
     title="GroundZero API",
@@ -26,6 +27,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(check_claim_router)
+app.include_router(oracles_router)
 
 
 @app.get("/")
