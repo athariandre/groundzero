@@ -93,8 +93,9 @@ class ClaimExtractor:
         Returns:
             List of percentage values as floats
         """
-        # Pattern matches optional +/-, optional "up/down", number, optional decimal, %
-        pattern = r"[+\-]?\s*(?:up\s+|down\s+)?(\d+(?:\.\d+)?)\s*%"
+        # Pattern with bounded quantifiers to prevent ReDoS
+        # Matches optional +/-, optional whitespace (max 5), optional "up/down", number, %
+        pattern = r"[+\-]?\s{0,5}(?:up\s+|down\s+)?(\d{1,5}(?:\.\d{1,2})?)\s{0,5}%"
         matches = re.findall(pattern, text, re.IGNORECASE)
 
         percentages = []
