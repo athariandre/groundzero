@@ -5,7 +5,6 @@ Endpoints for parsing and classifying claims.
 """
 
 import logging
-import os
 
 from fastapi import APIRouter, HTTPException
 
@@ -47,9 +46,8 @@ async def parse_claim(request: ParseClaimRequest) -> ParseClaimResponse:
     claim = extract_claim(request.claim_text)
     logger.debug(f"Extracted: {claim.model_dump()}")
 
-    # Classify domain - use environment variable to control LLM usage
-    use_llm = os.getenv("USE_LLM", "true").lower() == "true"
-    domain = classify_domain(request.claim_text, claim, use_llm=use_llm)
+    # Classify domain
+    domain = classify_domain(request.claim_text, claim)
     logger.debug(f"Domain classified as: {domain}")
 
     return ParseClaimResponse(claim=claim, domain=domain)
@@ -83,8 +81,7 @@ async def check_claim(request: ParseClaimRequest) -> AggregateResult:
     logger.debug(f"Extracted: {claim.model_dump()}")
     
     # Step 2: Classify domain
-    use_llm = os.getenv("USE_LLM", "true").lower() == "true"
-    domain = classify_domain(request.claim_text, claim, use_llm=use_llm)
+    domain = classify_domain(request.claim_text, claim)
     logger.debug(f"Domain classified as: {domain}")
     
     # Step 3: Route to oracle(s)

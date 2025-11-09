@@ -8,6 +8,9 @@ from server.schemas.aggregate_result import AggregateResult, OracleCallResult
 from server.schemas.claim import Claim, DomainResult
 from server.schemas.oracle_result import OracleResult
 
+# Rebuild model to resolve forward references
+AggregateResult.model_rebuild()
+
 
 def aggregate_oracle_results(
     oracle_results: list[OracleResult],
