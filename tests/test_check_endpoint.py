@@ -2,7 +2,6 @@
 Tests for the /check_claim/check endpoint.
 """
 
-import pytest
 from fastapi.testclient import TestClient
 
 from server.main import app
@@ -19,28 +18,28 @@ class TestCheckClaimEndpoint:
             "/check_claim/check",
             json={"claim_text": "AAPL rose 10% today"}
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         # Check response structure
         assert "final_verdict" in data
         assert "final_confidence" in data
         assert "oracle_calls" in data
         assert "domain" in data
         assert "claim" in data
-        
+
         # Verify domain classification
         assert data["domain"]["domain"] == "finance"
-        
+
         # Verify claim extraction
         assert data["claim"]["raw"] == "AAPL rose 10% today"
         assert "AAPL" in data["claim"]["tickers"]
-        
+
         # Verify oracle calls
         assert isinstance(data["oracle_calls"], list)
         assert len(data["oracle_calls"]) >= 1
-        
+
         # First oracle should be finance
         first_oracle = data["oracle_calls"][0]
         assert first_oracle["oracle_name"] == "finance"
@@ -54,21 +53,21 @@ class TestCheckClaimEndpoint:
             "/check_claim/check",
             json={"claim_text": "Apple announced a new iPhone yesterday"}
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         # Verify domain classification
         assert data["domain"]["domain"] == "tech_release"
-        
+
         # Since tech oracle returns uncertain, should trigger fallback
         oracle_calls = data["oracle_calls"]
         assert len(oracle_calls) >= 1
-        
+
         # First oracle should be tech_release
         assert oracle_calls[0]["oracle_name"] == "tech_release"
         assert oracle_calls[0]["verdict"] == "uncertain"
-        
+
         # Should have fallback due to uncertain verdict
         if len(oracle_calls) > 1:
             assert oracle_calls[1]["oracle_name"] == "llm_oracle"
@@ -79,13 +78,13 @@ class TestCheckClaimEndpoint:
             "/check_claim/check",
             json={"claim_text": "This is just a general statement"}
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         # Verify domain classification
         assert data["domain"]["domain"] == "general"
-        
+
         # Should route to LLM oracle
         oracle_calls = data["oracle_calls"]
         assert len(oracle_calls) >= 1
@@ -98,10 +97,10 @@ class TestCheckClaimEndpoint:
             "/check_claim/check",
             json={"claim_text": "Some ambiguous claim about stocks maybe"}
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         # If domain confidence < 0.6, should have fallback oracle
         if data["domain"]["confidence"] < 0.6:
             oracle_calls = data["oracle_calls"]
@@ -114,7 +113,7 @@ class TestCheckClaimEndpoint:
             "/check_claim/check",
             json={"claim_text": ""}
         )
-        
+
         assert response.status_code == 400
         data = response.json()
         assert "detail" in data
@@ -123,7 +122,7 @@ class TestCheckClaimEndpoint:
     def test_check_claim_missing_field(self):
         """Test that missing claim_text field returns validation error."""
         response = client.post("/check_claim/check", json={})
-        
+
         assert response.status_code == 422  # Validation error
 
     def test_check_claim_response_structure(self):
@@ -132,24 +131,24 @@ class TestCheckClaimEndpoint:
             "/check_claim/check",
             json={"claim_text": "Test claim AAPL"}
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         # Top-level fields
         assert "final_verdict" in data
         assert "final_confidence" in data
         assert "oracle_calls" in data
         assert "domain" in data
         assert "claim" in data
-        
+
         # Final verdict should be a string
         assert isinstance(data["final_verdict"], str)
         assert data["final_verdict"] in ["likely_true", "likely_false", "uncertain", "unsupported"]
-        
+
         # Final confidence should be between 0 and 1
         assert 0.0 <= data["final_confidence"] <= 1.0
-        
+
         # Oracle calls structure
         for oracle_call in data["oracle_calls"]:
             assert "oracle_name" in oracle_call
@@ -157,12 +156,12 @@ class TestCheckClaimEndpoint:
             assert "confidence" in oracle_call
             assert "evidence" in oracle_call
             assert "domain_context" in oracle_call
-        
+
         # Domain structure
         domain = data["domain"]
         assert "domain" in domain
         assert "confidence" in domain
-        
+
         # Claim structure
         claim = data["claim"]
         assert "raw" in claim
@@ -178,10 +177,10 @@ class TestCheckClaimEndpoint:
             "/check_claim/check",
             json={"claim_text": "AAPL rose 10% today"}
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         # Verify final verdict is one of the expected values
         assert data["final_verdict"] in ["likely_true", "likely_false", "uncertain", "unsupported"]
 
@@ -191,15 +190,15 @@ class TestCheckClaimEndpoint:
             "/check_claim/check",
             json={"claim_text": "TSLA and NVDA both jumped 5% this morning"}
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         # Verify claim extraction
         claim = data["claim"]
         assert "TSLA" in claim["tickers"]
         assert "NVDA" in claim["tickers"]
-        
+
         # Should be classified as finance
         assert data["domain"]["domain"] == "finance"
 
@@ -209,10 +208,10 @@ class TestCheckClaimEndpoint:
             "/check_claim/check",
             json={"claim_text": "AAPL stock moved today"}
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         # Oracle calls should preserve evidence
         for oracle_call in data["oracle_calls"]:
             assert "evidence" in oracle_call
@@ -220,26 +219,26 @@ class TestCheckClaimEndpoint:
 
     def test_check_claim_complex_scenario(self):
         """Test a complex claim with multiple features."""
-        text = "Tesla and NVIDIA stock prices surged 15% and 20% today after both announced new releases"
-        response = client.post(
-            "/check_claim/check",
-            json={"claim_text": text}
+        text = (
+            "Tesla and NVIDIA stock prices surged 15% and 20% today "
+            "after both announced new releases"
         )
-        
+        response = client.post("/check_claim/check", json={"claim_text": text})
+
         assert response.status_code == 200
         data = response.json()
-        
+
         # Should extract both companies/tickers
         claim = data["claim"]
         has_tesla = "Tesla" in claim["companies"] or "TSLA" in claim["tickers"]
         has_nvidia = "NVIDIA" in claim["companies"] or "NVDA" in claim["tickers"]
         assert has_tesla or has_nvidia
-        
+
         # Should extract percentages
         assert len(claim["percentages"]) > 0
-        
+
         # Should be classified (could be finance or tech_release)
         assert data["domain"]["domain"] in ["finance", "tech_release"]
-        
+
         # Should have oracle calls
         assert len(data["oracle_calls"]) >= 1

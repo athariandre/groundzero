@@ -22,7 +22,7 @@ class OracleRouter:
         self.finance_oracle = FinanceOracle()
         self.tech_release_oracle = TechReleaseOracle()
         self.llm_oracle = LLMOracle()
-        
+
         self.registry = {
             "finance": self.finance_oracle,
             "tech_release": self.tech_release_oracle,
@@ -34,12 +34,12 @@ class OracleRouter:
     ) -> tuple[list[OracleResult], OracleRoutingDecision]:
         """
         Route the claim to appropriate oracle(s) and return results.
-        
+
         Routing logic:
         - finance → FinanceOracle
         - tech_release → TechReleaseOracle
         - general → LLMOracle
-        
+
         Fallback logic:
         - If domain.confidence < 0.6 → run LLMOracle as fallback
         - If primary oracle returns "uncertain" → run LLMOracle as fallback
@@ -61,15 +61,14 @@ class OracleRouter:
 
         # Decide on fallback
         fallback_used = False
-        
+
         # Run LLM oracle as fallback if:
         # 1. Domain confidence is low (< 0.6)
         # 2. Primary oracle returned "uncertain"
         needs_fallback = (
-            domain.confidence < PRIMARY_THRESHOLD or 
-            primary_result.verdict == "uncertain"
+            domain.confidence < PRIMARY_THRESHOLD or primary_result.verdict == "uncertain"
         )
-        
+
         # Only run fallback if primary oracle is not already the LLM oracle
         if needs_fallback and primary_domain != "general":
             fallback_used = True

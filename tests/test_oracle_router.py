@@ -2,7 +2,6 @@
 Tests for enhanced oracle router with fallback logic.
 """
 
-import pytest
 
 from server.oracles.router import OracleRouter
 from server.schemas.claim import Claim, DomainResult
@@ -21,9 +20,9 @@ class TestOracleRouter:
             date_hint="today",
         )
         domain = DomainResult(domain="finance", confidence=0.9)
-        
+
         results, routing = router.run(claim, domain)
-        
+
         # Should route to finance oracle only (no fallback due to high confidence)
         assert routing.primary_oracle == "finance"
         assert routing.fallback_used is False
@@ -39,9 +38,9 @@ class TestOracleRouter:
             event_type="tech_release",
         )
         domain = DomainResult(domain="tech_release", confidence=0.85)
-        
+
         results, routing = router.run(claim, domain)
-        
+
         assert routing.primary_oracle == "tech_release"
         # Tech release oracle stub returns "uncertain", so fallback should be used
         assert routing.fallback_used is True
@@ -54,9 +53,9 @@ class TestOracleRouter:
         router = OracleRouter()
         claim = Claim(raw="This is a general statement")
         domain = DomainResult(domain="general", confidence=0.8)
-        
+
         results, routing = router.run(claim, domain)
-        
+
         assert routing.primary_oracle == "general"
         assert routing.fallback_used is False
         assert len(results) == 1
@@ -70,9 +69,9 @@ class TestOracleRouter:
             tickers=["AAPL"],
         )
         domain = DomainResult(domain="finance", confidence=0.5)
-        
+
         results, routing = router.run(claim, domain)
-        
+
         # Should use fallback due to low confidence
         assert routing.primary_oracle == "finance"
         assert routing.fallback_used is True
@@ -89,9 +88,9 @@ class TestOracleRouter:
             companies=["Apple"],
         )
         domain = DomainResult(domain="tech_release", confidence=0.9)
-        
+
         results, routing = router.run(claim, domain)
-        
+
         # Should use fallback because tech_release oracle returns uncertain
         assert routing.primary_oracle == "tech_release"
         assert routing.fallback_used is True
@@ -105,9 +104,9 @@ class TestOracleRouter:
         router = OracleRouter()
         claim = Claim(raw="Random statement")
         domain = DomainResult(domain="general", confidence=0.3)
-        
+
         results, routing = router.run(claim, domain)
-        
+
         # Low confidence but primary is already LLM, no fallback
         assert routing.primary_oracle == "general"
         assert routing.fallback_used is False
@@ -118,13 +117,13 @@ class TestOracleRouter:
         """Test behavior at confidence threshold boundary (0.6)."""
         router = OracleRouter()
         claim = Claim(raw="Test claim", tickers=["AAPL"])
-        
+
         # At threshold (0.6), should NOT use fallback
         domain_at_threshold = DomainResult(domain="finance", confidence=0.6)
         results, routing = router.run(claim, domain_at_threshold)
         assert routing.fallback_used is False
         assert len(results) == 1
-        
+
         # Just below threshold (0.59), should use fallback
         domain_below_threshold = DomainResult(domain="finance", confidence=0.59)
         results, routing = router.run(claim, domain_below_threshold)
@@ -137,9 +136,9 @@ class TestOracleRouter:
         claim = Claim(raw="Some claim")
         # Use an unknown domain (should fall back to general)
         domain = DomainResult(domain="unknown_domain", confidence=0.8)
-        
+
         results, routing = router.run(claim, domain)
-        
+
         assert routing.primary_oracle == "general"
         assert len(results) == 1
         assert results[0].oracle_name == "llm_oracle"
@@ -147,11 +146,11 @@ class TestOracleRouter:
     def test_oracle_registry_contains_all_domains(self):
         """Test that oracle registry has entries for all expected domains."""
         router = OracleRouter()
-        
+
         assert "finance" in router.registry
         assert "tech_release" in router.registry
         assert "general" in router.registry
-        
+
         # Verify oracle types
         assert router.registry["finance"].name == "finance"
         assert router.registry["tech_release"].name == "tech_release"

@@ -16,7 +16,7 @@ class TestAggregator:
         """Test aggregation with single likely_true result."""
         claim = Claim(raw="Test claim", tickers=["AAPL"])
         domain = DomainResult(domain="finance", confidence=0.9)
-        
+
         oracle_results = [
             OracleResult(
                 oracle_name="finance",
@@ -25,9 +25,9 @@ class TestAggregator:
                 evidence=[],
             )
         ]
-        
+
         result = aggregate_oracle_results(oracle_results, claim, domain)
-        
+
         assert result.final_verdict == "likely_true"
         assert result.final_confidence == 0.85
         assert len(result.oracle_calls) == 1
@@ -38,7 +38,7 @@ class TestAggregator:
         """Test aggregation with single likely_false result."""
         claim = Claim(raw="Test claim", tickers=["AAPL"])
         domain = DomainResult(domain="finance", confidence=0.9)
-        
+
         oracle_results = [
             OracleResult(
                 oracle_name="finance",
@@ -47,9 +47,9 @@ class TestAggregator:
                 evidence=[],
             )
         ]
-        
+
         result = aggregate_oracle_results(oracle_results, claim, domain)
-        
+
         assert result.final_verdict == "likely_false"
         assert result.final_confidence == 0.75
 
@@ -57,7 +57,7 @@ class TestAggregator:
         """Test aggregation with single uncertain result."""
         claim = Claim(raw="Test claim", tickers=[])
         domain = DomainResult(domain="general", confidence=0.8)
-        
+
         oracle_results = [
             OracleResult(
                 oracle_name="llm_oracle",
@@ -66,9 +66,9 @@ class TestAggregator:
                 evidence=[],
             )
         ]
-        
+
         result = aggregate_oracle_results(oracle_results, claim, domain)
-        
+
         assert result.final_verdict == "uncertain"
         assert result.final_confidence == 0.3
 
@@ -76,7 +76,7 @@ class TestAggregator:
         """Test that likely_false takes precedence over likely_true."""
         claim = Claim(raw="Test claim", tickers=["AAPL"])
         domain = DomainResult(domain="finance", confidence=0.5)
-        
+
         oracle_results = [
             OracleResult(
                 oracle_name="finance",
@@ -91,9 +91,9 @@ class TestAggregator:
                 evidence=[],
             ),
         ]
-        
+
         result = aggregate_oracle_results(oracle_results, claim, domain)
-        
+
         # Rule 1: likely_false takes precedence
         assert result.final_verdict == "likely_false"
         # Mixed verdicts: choose lowest confidence
@@ -103,7 +103,7 @@ class TestAggregator:
         """Test aggregation with multiple likely_true results."""
         claim = Claim(raw="Test claim", tickers=["AAPL"])
         domain = DomainResult(domain="finance", confidence=0.5)
-        
+
         oracle_results = [
             OracleResult(
                 oracle_name="finance",
@@ -118,9 +118,9 @@ class TestAggregator:
                 evidence=[],
             ),
         ]
-        
+
         result = aggregate_oracle_results(oracle_results, claim, domain)
-        
+
         assert result.final_verdict == "likely_true"
         # Supporting verdicts: average the confidences
         assert result.final_confidence == pytest.approx(0.7)
@@ -129,7 +129,7 @@ class TestAggregator:
         """Test aggregation with multiple likely_false results."""
         claim = Claim(raw="Test claim", tickers=["AAPL"])
         domain = DomainResult(domain="finance", confidence=0.5)
-        
+
         oracle_results = [
             OracleResult(
                 oracle_name="finance",
@@ -144,9 +144,9 @@ class TestAggregator:
                 evidence=[],
             ),
         ]
-        
+
         result = aggregate_oracle_results(oracle_results, claim, domain)
-        
+
         assert result.final_verdict == "likely_false"
         # Multiple likely_false: average them
         assert result.final_confidence == pytest.approx(0.8)
@@ -155,7 +155,7 @@ class TestAggregator:
         """Test aggregation when all results are uncertain."""
         claim = Claim(raw="Test claim", tickers=[])
         domain = DomainResult(domain="general", confidence=0.4)
-        
+
         oracle_results = [
             OracleResult(
                 oracle_name="tech_release",
@@ -170,9 +170,9 @@ class TestAggregator:
                 evidence=[],
             ),
         ]
-        
+
         result = aggregate_oracle_results(oracle_results, claim, domain)
-        
+
         assert result.final_verdict == "uncertain"
         # All uncertain: use 0.3
         assert result.final_confidence == 0.3
@@ -181,7 +181,7 @@ class TestAggregator:
         """Test aggregation with uncertain and unsupported results."""
         claim = Claim(raw="Test claim", tickers=[])
         domain = DomainResult(domain="general", confidence=0.8)
-        
+
         oracle_results = [
             OracleResult(
                 oracle_name="finance",
@@ -196,9 +196,9 @@ class TestAggregator:
                 evidence=[],
             ),
         ]
-        
+
         result = aggregate_oracle_results(oracle_results, claim, domain)
-        
+
         # No likely_true or likely_false, so uncertain
         assert result.final_verdict == "uncertain"
         assert result.final_confidence == 0.3
@@ -207,7 +207,7 @@ class TestAggregator:
         """Test that oracle call results are properly converted and preserved."""
         claim = Claim(raw="Test claim", tickers=["AAPL"])
         domain = DomainResult(domain="finance", confidence=0.9)
-        
+
         oracle_results = [
             OracleResult(
                 oracle_name="finance",
@@ -224,18 +224,18 @@ class TestAggregator:
                 domain_context={"method": "llm"},
             ),
         ]
-        
+
         result = aggregate_oracle_results(oracle_results, claim, domain)
-        
+
         assert len(result.oracle_calls) == 2
-        
+
         # Check first oracle call
         call1 = result.oracle_calls[0]
         assert call1.oracle_name == "finance"
         assert call1.verdict == "likely_true"
         assert call1.confidence == 0.85
         assert call1.domain_context == {"ticker": "AAPL"}
-        
+
         # Check second oracle call
         call2 = result.oracle_calls[1]
         assert call2.oracle_name == "llm_oracle"
