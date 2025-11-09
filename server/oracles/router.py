@@ -2,7 +2,14 @@
 Oracle router for GroundZero.
 
 Routes claims to appropriate oracles based on domain classification.
+
+Important assumptions:
+- Oracles must use forward-only timestamp snapping to avoid lookahead bias
+  (e.g., FinanceOracle snaps event timestamps to the next available price bar)
+- Fallback is triggered by either low domain confidence OR uncertain primary verdict
 """
+
+import logging
 
 from server.oracles.fallback import LLMOracle
 from server.oracles.finance import FinanceOracle
@@ -11,6 +18,8 @@ from server.schemas.claim import Claim, DomainResult
 from server.schemas.oracle_result import OracleResult, OracleRoutingDecision
 
 PRIMARY_THRESHOLD = 0.6
+
+logger = logging.getLogger(__name__)
 
 
 class OracleRouter:
@@ -65,6 +74,7 @@ class OracleRouter:
         # Run LLM oracle as fallback if:
         # 1. Domain confidence is low (< 0.6)
         # 2. Primary oracle returned "uncertain"
+        # Note: These conditions are OR'd, so fallback triggers if either is true
         needs_fallback = (
             domain.confidence < PRIMARY_THRESHOLD or primary_result.verdict == "uncertain"
         )
@@ -72,6 +82,10 @@ class OracleRouter:
         # Only run fallback if primary oracle is not already the LLM oracle
         if needs_fallback and primary_domain != "general":
             fallback_used = True
+            logger.debug(
+                f"Fallback triggered: domain_confidence={domain.confidence:.2f}, "
+                f"primary_verdict={primary_result.verdict}, primary_oracle={primary_domain}"
+            )
             fallback_result = self.llm_oracle.analyze(claim, domain)
             results.append(fallback_result)
 

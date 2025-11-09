@@ -55,6 +55,9 @@ def aggregate_oracle_results(
     confidences = [result.confidence for result in oracle_results]
 
     # Apply deterministic aggregation rules
+    # Note: "unsupported" verdicts are treated the same as "uncertain" and do not affect
+    # the final verdict. This is intentional - an oracle returning "unsupported" indicates
+    # it cannot process the claim, not that the claim is false.
     final_verdict = "uncertain"
     final_confidence = 0.3
 
