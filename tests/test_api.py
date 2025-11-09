@@ -98,15 +98,12 @@ class TestCheckClaimAPI:
         assert response.status_code == 422  # Validation error
 
     def test_parse_claim_empty_text(self):
-        """Test parsing empty claim text."""
+        """Test parsing empty claim text returns validation error."""
         response = client.post("/check_claim/parse", json={"claim_text": ""})
-        assert response.status_code == 200
+        assert response.status_code == 400  # Bad request for empty text
         data = response.json()
-
-        claim = data["claim"]
-        assert claim["raw"] == ""
-        assert len(claim["tickers"]) == 0
-        assert len(claim["companies"]) == 0
+        assert "detail" in data
+        assert "empty" in data["detail"].lower()
 
     def test_response_structure(self):
         """Test that response has correct structure."""

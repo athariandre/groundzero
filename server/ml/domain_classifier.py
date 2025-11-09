@@ -67,7 +67,7 @@ class DomainClassifier:
         text_lower = text.lower()
 
         # Check for finance domain
-        has_percentage = claim and len(claim.percentages) > 0 if claim else False
+        has_percentage = bool(claim and claim.percentages)
         has_finance_keyword = any(
             re.search(r"\b" + re.escape(keyword) + r"\b", text_lower)
             for keyword in FINANCE_KEYWORDS

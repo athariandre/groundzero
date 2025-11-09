@@ -49,7 +49,28 @@ class ClaimExtractor:
         # Keep only if they look like tickers (typically 2-5 chars)
         # This is a simple approach; a more sophisticated one would use a ticker database
         common_words = {"I", "A", "IT", "US", "UK", "AI", "ML", "API", "CEO", "CTO", "CFO"}
-        tickers = [m for m in matches if m not in common_words and len(m) >= 2]
+
+        # Filter out common tech acronyms that are unlikely to be tickers
+        false_positive_acronyms = {
+            "GPU",
+            "CPU",
+            "RAM",
+            "SSD",
+            "HTTP",
+            "HTTPS",
+            "HTML",
+            "CSS",
+            "JSON",
+            "SQL",
+            "RL",
+            "SDK",
+        }
+
+        tickers = [
+            m
+            for m in matches
+            if m not in common_words and m not in false_positive_acronyms and len(m) >= 2
+        ]
 
         # Remove duplicates while preserving order
         seen = set()
