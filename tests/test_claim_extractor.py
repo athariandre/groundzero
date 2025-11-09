@@ -2,7 +2,6 @@
 Tests for the claim extraction module.
 """
 
-import pytest
 
 from server.ml.claim_extractor import ClaimExtractor, extract_claim
 
