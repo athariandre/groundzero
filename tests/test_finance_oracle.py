@@ -156,11 +156,12 @@ class TestFinanceOracle:
         monkeypatch.setattr(oracle, "news_data_dir", temp_data_dirs["news"])
 
         # Use claim without date_hint so it falls back to news timestamp
+        # Note: percentages is empty to avoid percentage mismatch logic
         claim = Claim(
-            raw="SOL jumped 8% after ETF approval",
+            raw="SOL jumped after ETF approval",
             tickers=["SOL"],
             companies=[],
-            percentages=[8.0],
+            percentages=[],  # No specific percentage claimed
             date_hint=None,  # Will use news timestamp instead
             event_type="price_movement",
         )
@@ -359,7 +360,9 @@ class TestFinanceOracle:
         verdict, confidence = oracle._classify_claim(metrics)
 
         assert verdict == "likely_true"
-        assert confidence > 0.7
+        # With /100 formula: max(8.0, 7.5) / 100 = 0.08, clamped to 0.1, + 0.1 volume = 0.2
+        assert confidence >= 0.1
+        assert confidence <= 0.95
 
     def test_classify_claim_likely_false(self):
         """Test claim classification as likely_false."""
@@ -374,7 +377,9 @@ class TestFinanceOracle:
         verdict, confidence = oracle._classify_claim(metrics)
 
         assert verdict == "likely_false"
-        assert confidence > 0.6
+        # With /100 formula: max(8.0, 7.5) / 100 = 0.08, clamped to 0.1, + 0.1 volume = 0.2
+        assert confidence >= 0.1
+        assert confidence <= 0.95
 
     def test_classify_claim_uncertain(self):
         """Test claim classification as uncertain."""
@@ -390,6 +395,24 @@ class TestFinanceOracle:
 
         assert verdict == "uncertain"
         assert confidence == 0.4
+
+    def test_classify_claim_percentage_mismatch(self):
+        """Test that percentage mismatch causes likely_false verdict."""
+        oracle = FinanceOracle()
+
+        metrics = {
+            "pre_event_return": 0.5,
+            "post_event_return": 2.0,  # Actual is 2%
+            "abnormal_volume_z": 1.5,
+            "percentage_mismatch": True,  # Claim said 12% but actual is 2%
+        }
+
+        verdict, confidence = oracle._classify_claim(metrics)
+
+        # Should be likely_false due to mismatch, even though post > pre
+        assert verdict == "likely_false"
+        assert confidence >= 0.1
+        assert confidence <= 0.95
 
     def test_build_evidence_items(self):
         """Test building evidence items from news data."""

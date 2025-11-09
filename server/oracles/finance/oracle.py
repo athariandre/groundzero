@@ -385,32 +385,40 @@ class FinanceOracle(Oracle):
 
         # Classify based on the rules:
         # - likely_true: post_event_return > 0 AND post_event_return > pre_event_return
-        # - likely_false: pre_event_return > post_event_return
+        # - likely_false: pre_event_return > post_event_return OR significant percentage mismatch
         # - uncertain: otherwise
+
+        # If percentage mismatch is significant, treat as likely_false
+        # (claim overstates/understates the actual movement)
+        if percentage_mismatch:
+            return_diff = abs(pre_return - post_return)
+            base_confidence = max(abs(pre_return), abs(post_return), return_diff) / 100.0
+            base_confidence = max(0.1, min(0.9, base_confidence))
+
+            # Boost confidence if abnormal volume
+            if volume_z > 1.0:
+                base_confidence = min(base_confidence + 0.1, 0.95)
+
+            return "likely_false", base_confidence
 
         if post_return > 0 and post_return > pre_return:
             # Claim is likely true
             # Use PR4 spec confidence formula:
             # base_conf = max(|post|, |post - pre|) / 100, clamped [0.1, 0.9]
-            # But scale by 10 to get reasonable confidence values
             return_diff = abs(post_return - pre_return)
-            base_confidence = max(abs(post_return), return_diff) / 10.0
+            base_confidence = max(abs(post_return), return_diff) / 100.0
             base_confidence = max(0.1, min(0.9, base_confidence))
 
             # Boost confidence if abnormal volume (z-score > 1)
             if volume_z > 1.0:
                 base_confidence = min(base_confidence + 0.1, 0.95)
 
-            # Reduce confidence if percentage mismatch
-            if percentage_mismatch:
-                base_confidence = max(0.3, base_confidence - 0.2)
-
             return "likely_true", base_confidence
 
         elif pre_return > post_return:
             # Claim is likely false
             return_diff = abs(pre_return - post_return)
-            base_confidence = max(abs(pre_return), return_diff) / 10.0
+            base_confidence = max(abs(pre_return), return_diff) / 100.0
             base_confidence = max(0.1, min(0.9, base_confidence))
 
             # Boost confidence if abnormal volume
