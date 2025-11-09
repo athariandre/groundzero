@@ -2,7 +2,6 @@
 Tests for the domain classification module.
 """
 
-
 from server.ml.domain_classifier import DomainClassifier, SemanticDomainClassifier, classify_domain
 from server.schemas.claim import Claim
 
@@ -78,7 +77,7 @@ class TestDomainClassifier:
 
     def test_classify_finance_with_percentage(self):
         """Test classification of finance domain with percentage."""
-        classifier = DomainClassifier(use_llm=False)
+        classifier = DomainClassifier()
         text = "Stock rose 10% today"
         claim = Claim(
             raw=text,
@@ -94,7 +93,7 @@ class TestDomainClassifier:
 
     def test_classify_finance_with_keyword(self):
         """Test classification of finance domain with keyword."""
-        classifier = DomainClassifier(use_llm=False)
+        classifier = DomainClassifier()
         text = "Stock price jumped significantly"
         result = classifier.classify(text)
         assert result.domain == "finance"
@@ -102,7 +101,7 @@ class TestDomainClassifier:
 
     def test_classify_tech_release(self):
         """Test classification of tech release domain."""
-        classifier = DomainClassifier(use_llm=False)
+        classifier = DomainClassifier()
         text = "Apple announced a new product"
         result = classifier.classify(text)
         assert result.domain == "tech_release"
@@ -110,7 +109,7 @@ class TestDomainClassifier:
 
     def test_classify_general_no_llm(self):
         """Test classification defaults to general when semantic match is weak."""
-        classifier = DomainClassifier(use_llm=False)
+        classifier = DomainClassifier()
         text = "The weather is nice today"
         result = classifier.classify(text)
         assert result.domain == "general"
@@ -118,14 +117,14 @@ class TestDomainClassifier:
 
     def test_classify_finance_multiple_keywords(self):
         """Test classification with multiple finance keywords."""
-        classifier = DomainClassifier(use_llm=False)
+        classifier = DomainClassifier()
         text = "The stock surged and jumped today"
         result = classifier.classify(text)
         assert result.domain == "finance"
 
     def test_classify_tech_multiple_keywords(self):
         """Test classification with multiple tech keywords."""
-        classifier = DomainClassifier(use_llm=False)
+        classifier = DomainClassifier()
         text = "Company released and launched new software"
         result = classifier.classify(text)
         assert result.domain == "tech_release"
@@ -141,33 +140,33 @@ class TestDomainClassifier:
             date_hint="yesterday",
             event_type="price_movement",
         )
-        result = classify_domain(text, claim, use_llm=False)
+        result = classify_domain(text, claim)
         assert result.domain == "finance"
         assert 0.0 <= result.confidence <= 1.0
 
     def test_classify_function_tech(self):
         """Test the classify_domain function with tech text."""
         text = "Google introduced new AI features"
-        result = classify_domain(text, use_llm=False)
+        result = classify_domain(text)
         assert result.domain == "tech_release"
         assert 0.0 <= result.confidence <= 1.0
 
     def test_classify_function_general(self):
         """Test the classify_domain function with general text."""
         text = "The weather is nice today"
-        result = classify_domain(text, use_llm=False)
+        result = classify_domain(text)
         assert result.domain == "general"
 
     def test_confidence_range(self):
         """Test that confidence values are within valid range."""
-        classifier = DomainClassifier(use_llm=False)
+        classifier = DomainClassifier()
         text = "Stock fell dramatically"
         result = classifier.classify(text)
         assert 0.0 <= result.confidence <= 1.0
 
     def test_classify_with_claim_object(self):
         """Test classification using Claim object with extracted data."""
-        classifier = DomainClassifier(use_llm=False)
+        classifier = DomainClassifier()
         text = "Stock movement today"
         claim = Claim(
             raw=text,
@@ -182,7 +181,7 @@ class TestDomainClassifier:
 
     def test_case_insensitive_classification(self):
         """Test that classification is case-insensitive."""
-        classifier = DomainClassifier(use_llm=False)
+        classifier = DomainClassifier()
         text = "STOCK PRICE ROSE TODAY"
         result = classifier.classify(text)
         assert result.domain == "finance"
